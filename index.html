@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Doraemon's Magical Phonics Adventure Map — Year 2</title>
+<style>
+  :root {
+    --primary-blue: #00A0E9;
+    --dark-blue: #005BAC;
+    --accent-yellow: #FFD100;
+    --accent-red: #ED1C24;
+    --pastel-bg: #E8F6FE;
+    --card-bg: #FFFFFF;
+    --text-color: #2C3E50;
+    --success-green: #2ECC71;
+    --font-family: 'Comic Sans MS', 'Chalkboard SE', 'Fredoka', cursive, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body, html { width: 100%; height: 100%; overflow: hidden; background: #87CEEB; font-family: var(--font-family); color: var(--text-color); }
+
+  #app-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    max-width: 1200px;
+    max-height: 800px;
+    margin: 0 auto;
+    background: linear-gradient(to bottom, #7CD3F7, #B5E5F9);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0,0,0,0.3);
+  }
+
+  /* HUD HEADER */
+  header {
+    height: 60px;
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom: 4px solid var(--primary-blue);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 10;
+  }
+
+  .logo-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--dark-blue);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .hud-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .icon-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 3px solid var(--dark-blue);
+    background: var(--accent-yellow);
+    color: var(--dark-blue);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 0 var(--dark-blue);
+    transition: transform 0.1s;
+  }
+
+  .icon-btn:active { transform: translateY(4px); box-shadow: none; }
+  .icon-btn.off { background: #BDC3C7; color: #7F8C8D; border-color: #7F8C8D; box-shadow: 0 4px 0 #7F8C8D; }
+
+  /* MAP VIEW CONTAINER */
+  #map-view {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    height: calc(100% - 60px);
+    overflow: hidden;
+    background: #7EC850;
+  }
+
+  .map-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* MAP NODE MARKERS */
+  .map-node {
+    position: absolute;
+    width: 75px;
+    height: 75px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 4px solid #FFF;
+    background: #BDC3C7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+    transition: transform 0.3s, background 0.3s;
+    z-index: 5;
+  }
+
+  .map-node.unlocked { background: var(--accent-yellow); border-color: var(--dark-blue); animation: pulse 2s infinite; }
+  .map-node.completed { background: var(--success-green); border-color: #FFF; }
+  .map-node.locked { cursor: not-allowed; opacity: 0.8; }
+
+  @keyframes pulse {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.08); }
+    100% { transform: translate(-50%, -50%) scale(1); }
+  }
+
+  .node-num {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--dark-blue);
+  }
+
+  .node-title {
+    position: absolute;
+    bottom: -25px;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    border: 2px solid var(--dark-blue);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+
+  /* PLAYER TOKEN */
+  #player-token {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    transform: translate(-50%, -80%);
+    transition: left 1s ease-in-out, top 1s ease-in-out;
+    z-index: 8;
+    pointer-events: none;
+  }
+
+  /* OVERLAY / MODALS */
+  .modal-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal-card {
+    width: 90%;
+    max-width: 600px;
+    background: var(--card-bg);
+    border-radius: 24px;
+    border: 6px solid var(--primary-blue);
+    padding: 25px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    position: relative;
+    transform: scale(0.8);
+    transition: transform 0.3s ease;
+  }
+
+  .modal-overlay.active .modal-card { transform: scale(1); }
+
+  /* GAMEPLAY SCREEN */
+  #game-view {
+    position: absolute;
+    top: 60px; left: 0; width: 100%; height: calc(100% - 60px);
+    background: #E8F6FE;
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    transform: translateY(100%);
+    transition: transform 0.4s ease-out;
+  }
+
+  #game-view.active { transform: translateY(0); }
+
+  .level-header {
+    height: 50px;
+    background: #FFF;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 3px solid var(--primary-blue);
+  }
+
+  .progress-bar-container {
+    width: 200px;
+    height: 18px;
+    background: #E0E0E0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid var(--dark-blue);
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--success-green);
+    transition: width 0.3s;
+  }
+
+  .stage-canvas {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background-size: cover;
+    background-position: center;
+  }
+
+  .question-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 4px solid var(--primary-blue);
+    border-radius: 20px;
+    padding: 15px 20px;
+    width: 100%;
+    max-width: 700px;
+    text-align: center;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+  }
+
+  .word-display {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--dark-blue);
+    letter-spacing: 2px;
+    margin: 5px 0;
+  }
+
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    width: 100%;
+    max-width: 700px;
+    margin-top: 10px;
+  }
+
+  .option-btn {
+    background: #FFF;
+    border: 4px solid var(--primary-blue);
+    border-radius: 16px;
+    padding: 15px 10px;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--dark-blue);
+    cursor: pointer;
+    box-shadow: 0 6px 0 var(--primary-blue);
+    transition: all 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .option-btn:active { transform: translateY(6px); box-shadow: none; }
+  .option-btn.correct { background: var(--success-green); color: #FFF; border-color: #27AE60; box-shadow: 0 6px 0 #27AE60; }
+  .option-btn.wrong { background: var(--accent-red); color: #FFF; border-color: #C0392B; box-shadow: 0 6px 0 #C0392B; }
+
+  .character-dialogue {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(255,255,255,0.9);
+    padding: 10px 20px;
+    border-radius: 30px;
+    border: 3px solid var(--dark-blue);
+    margin-bottom: 10px;
+  }
+
+  .char-avatar { width: 60px; height: 60px; }
+  .dialogue-text { font-size: 1rem; font-weight: bold; color: var(--dark-blue); }
+
+  /* START SCREEN */
+  #start-screen {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(135deg, #00A0E9, #7CD3F7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .title-box {
+    background: #FFF;
+    border: 6px solid var(--accent-yellow);
+    border-radius: 30px;
+    padding: 20px 40px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    margin-bottom: 30px;
+  }
+
+  .title-box h1 { font-size: 2.2rem; color: var(--dark-blue); }
+  .title-box h2 { font-size: 1.2rem; color: var(--accent-red); margin-top: 5px; }
+
+  .btn-primary {
+    background: var(--accent-yellow);
+    color: var(--dark-blue);
+    border: 4px solid var(--dark-blue);
+    font-size: 1.6rem;
+    font-weight: 900;
+    padding: 15px 40px;
+    border-radius: 40px;
+    cursor: pointer;
+    box-shadow: 0 8px 0 var(--dark-blue);
+    transition: transform 0.1s;
+  }
+
+  .btn-primary:active { transform: translateY(8px); box-shadow: none; }
+
+  /* RESPONSIVE STYLES */
+  @media (max-width: 600px) {
+    .options-grid { grid-template-columns: 1fr; }
+    .title-box h1 { font-size: 1.5rem; }
+    .word-display { font-size: 1.6rem; }
+    .map-node { width: 55px; height: 55px; }
+    .node-num { font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app-container">
+  <!-- HUD HEADER -->
+  <header>
+    <div class="logo-title">
+      <svg width="30" height="30" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="45" fill="#00A0E9"/>
+        <circle cx="50" cy="55" r="35" fill="#FFF"/>
+        <circle cx="40" cy="35" r="10" fill="#FFF" stroke="#000" stroke-width="2"/>
+        <circle cx="60" cy="35" r="10" fill="#FFF" stroke="#000" stroke-width="2"/>
+        <circle cx="43" cy="35" r="3" fill="#000"/>
+        <circle cx="57" cy="35" r="3" fill="#000"/>
+        <circle cx="50" cy="48" r="6" fill="#ED1C24"/>
+      </svg>
+      PHONICS MAZE
+    </div>
+    <div class="hud-controls">
+      <button class="icon-btn" id="btn-music" title="Toggle Music">🎵</button>
+      <button class="icon-btn" id="btn-sfx" title="Toggle Sound FX">🔊</button>
+      <button class="icon-btn" id="btn-map-home" title="Map View">🗺️</button>
+    </div>
+  </header>
+
+  <!-- START SCREEN -->
+  <div id="start-screen">
+    <div class="title-box">
+      <h1>DORAEMON'S MAGICAL PHONICS ADVENTURE</h1>
+      <h2>YEAR 2: PHONEME SEGMENTATION (/sh/, /ch/, /th/)</h2>
+    </div>
+    
+    <!-- Cartoon Characters Graphic -->
+    <svg width="240" height="140" viewBox="0 0 240 140">
+      <!-- Doraemon -->
+      <g transform="translate(40,20)">
+        <circle cx="40" cy="40" r="35" fill="#00A0E9" stroke="#000" stroke-width="3"/>
+        <circle cx="40" cy="45" r="27" fill="#FFF"/>
+        <circle cx="32" cy="28" r="8" fill="#FFF" stroke="#000" stroke-width="2"/>
+        <circle cx="48" cy="28" r="8" fill="#FFF" stroke="#000" stroke-width="2"/>
+        <circle cx="34" cy="28" r="3" fill="#000"/>
+        <circle cx="46" cy="28" r="3" fill="#000"/>
+        <circle cx="40" cy="38" r="5" fill="#ED1C24"/>
+        <path d="M 25 50 Q 40 65 55 50" fill="none" stroke="#000" stroke-width="3"/>
+      </g>
+      <!-- Nobita -->
+      <g transform="translate(130,25)">
+        <circle cx="35" cy="35" r="30" fill="#FFE0BD" stroke="#000" stroke-width="3"/>
+        <path d="M 10 25 Q 35 0 60 25" fill="#4A2E10"/>
+        <circle cx="25" cy="32" r="9" fill="#FFF" stroke="#000" stroke-width="2"/>
+        <circle cx="45" cy="32" r="9" fill="#FFF" stroke="#000" stroke-width="2"/>
+        <circle cx="25" cy="32" r="3" fill="#000"/>
+        <circle cx="45" cy="32" r="3" fill="#000"/>
+        <path d="M 28 50 Q 35 58 42 50" fill="none" stroke="#000" stroke-width="2"/>
+      </g>
+    </svg>
+
+    <button class="btn-primary" id="btn-start" style="margin-top:20px;">START ADVENTURE</button>
+  </div>
+
+  <!-- MAP VIEW -->
+  <div id="map-view">
+    <svg class="map-svg" viewBox="0 0 1000 600" preserveAspectRatio="none">
+      <!-- Winding Path -->
+      <path d="M 100 500 Q 250 450 300 320 T 500 220 T 700 350 T 850 150" 
+            fill="none" stroke="#FFF" stroke-width="24" stroke-linecap="round"/>
+      <path d="M 100 500 Q 250 450 300 320 T 500 220 T 700 350 T 850 150" 
+            fill="none" stroke="#E67E22" stroke-width="16" stroke-linecap="round" stroke-dasharray="15 10"/>
+
+      <!-- Map Scenery Graphics -->
+      <text x="80" y="420" font-size="30">🌲🌲</text>
+      <text x="320" y="420" font-size="30">🌊🌉</text>
+      <text x="440" y="150" font-size="30">💎💎</text>
+      <text x="730" y="430" font-size="30">🚂🤖</text>
+      <text x="830" y="80" font-size="40">🏰🌈</text>
+    </svg>
+
+    <!-- Player Character Token -->
+    <div id="player-token">
+      <svg width="60" height="60" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="40" fill="#00A0E9" stroke="#FFF" stroke-width="4"/>
+        <circle cx="50" cy="55" r="30" fill="#FFF"/>
+        <circle cx="40" cy="35" r="8" fill="#FFF" stroke="#000" stroke-width="2"/>
+        <circle cx="60" cy="35" r="8" fill="#FFF" stroke="#000" stroke-width="2"/>
+        <circle cx="42" cy="35" r="3" fill="#000"/>
+        <circle cx="58" cy="35" r="3" fill="#000"/>
+        <circle cx="50" cy="45" r="5" fill="#ED1C24"/>
+      </svg>
+    </div>
+
+    <!-- Map Nodes (Rendered dynamically) -->
+    <div id="nodes-container"></div>
+  </div>
+
+  <!-- GAMEPLAY VIEW -->
+  <div id="game-view">
+    <div class="level-header">
+      <button class="icon-btn" id="btn-back-map" style="width:36px; height:36px; font-size:0.9rem;">⬅️</button>
+      <div id="level-title" style="font-weight:bold; color:var(--dark-blue);">LEVEL 1</div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="question-progress"></div>
+      </div>
+    </div>
+
+    <div class="stage-canvas" id="stage-canvas">
+      <!-- Character Guidance -->
+      <div class="character-dialogue">
+        <svg class="char-avatar" id="stage-avatar" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="#00A0E9"/>
+          <circle cx="50" cy="55" r="30" fill="#FFF"/>
+          <circle cx="40" cy="35" r="8" fill="#FFF" stroke="#000" stroke-width="2"/>
+          <circle cx="60" cy="35" r="8" fill="#FFF" stroke="#000" stroke-width="2"/>
+          <circle cx="43" cy="35" r="3" fill="#000"/>
+          <circle cx="57" cy="35" r="3" fill="#000"/>
+        </svg>
+        <div>
+          <div class="dialogue-text" id="dialogue-text">Listen closely to the word!</div>
+          <button id="btn-speech" style="background:none; border:none; color:var(--dark-blue); font-weight:bold; cursor:pointer; font-size:0.9rem; text-decoration:underline; margin-top:3px;">
+            🔊 Hear Word (Slow)
+          </button>
+        </div>
+      </div>
+
+      <!-- Question Card -->
+      <div class="question-card">
+        <div id="stage-visual" style="font-size:3rem; margin-bottom:5px;">🚢</div>
+        <div class="word-display" id="word-target">SHIP</div>
+        <div id="question-prompt" style="font-size:1.1rem; color:var(--text-color); margin-top:5px;">
+          How many sounds can you hear in SHIP?
+        </div>
+      </div>
+
+      <!-- Options Grid -->
+      <div class="options-grid" id="options-grid"></div>
+
+      <!-- Tools Footer -->
+      <div style="display:flex; gap:15px; margin-top:10px;">
+        <button class="icon-btn" id="btn-hint" style="width:auto; padding:0 15px; border-radius:20px; font-size:0.9rem; gap:5px;">
+          💡 Hint
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DIALOGS -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-card">
+      <h2 id="modal-title" style="color:var(--dark-blue); margin-bottom:10px;">GREAT JOB!</h2>
+      <div id="modal-body" style="font-size:1.1rem; margin-bottom:20px;">You solved all 3 challenges in this area!</div>
+      <button class="btn-primary" id="modal-btn">CONTINUE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* GAME DATA CONFIGURATION */
+  const LEVELS = [
+    {
+      id: 1,
+      name: "Doraemon's Magical Forest",
+      icon: "🌲",
+      pos: { x: 10, y: 83 },
+      color: "#2ECC71",
+      questions: [
+        {
+          word: "SHIP",
+          image: "🚢",
+          prompt: "How many sounds can you hear in SHIP?",
+          options: ["2", "3", "4"],
+          correct: 1,
+          hint: "Remember: 'sh' makes 1 sound! /sh/ /i/ /p/"
+        },
+        {
+          word: "SHOP",
+          image: "🏪",
+          prompt: "Which shows the correct sounds in SHOP?",
+          options: ["/s/ /h/ /o/ /p/", "/sh/ /o/ /p/", "/sh/ /p/"],
+          correct: 1,
+          hint: "digraph 'sh' counts as one single sound!"
+        },
+        {
+          word: "FISH",
+          image: "🐟",
+          prompt: "What is the last sound in FISH?",
+          options: ["/f/", "/i/", "/sh/"],
+          correct: 2,
+          hint: "Listen carefully to the end of fi-sh."
+        }
+      ]
+    },
+    {
+      id: 2,
+      name: "Nobita's Broken Bridge",
+      icon: "🌉",
+      pos: { x: 30, y: 53 },
+      color: "#E67E22",
+      questions: [
+        {
+          word: "FISH",
+          image: "🐟",
+          prompt: "Which shows the sounds in FISH?",
+          options: ["/f/ /i/ /sh/", "/f/ /i/ /s/ /h/", "/fi/ /sh/"],
+          correct: 0,
+          hint: "Break it down: /f/ - /i/ - /sh/."
+        },
+        {
+          word: "SHIP",
+          image: "🚢",
+          prompt: "How many phonemes are in SHIP?",
+          options: ["2", "3", "4"],
+          correct: 1,
+          hint: "Phonemes are individual sounds! /sh/ /i/ /p/ = 3."
+        },
+        {
+          word: "CHIN",
+          image: "🗣️",
+          prompt: "Which shows the sounds in CHIN?",
+          options: ["/c/ /h/ /i/ /n/", "/ch/ /i/ /n/", "/ch/ /n/"],
+          correct: 1,
+          hint: "'ch' represents one phoneme sound."
+        }
+      ]
+    },
+    {
+      id: 3,
+      name: "Shizuka's Sound Cave",
+      icon: "💎",
+      pos: { x: 50, y: 37 },
+      color: "#9B59B6",
+      questions: [
+        {
+          word: "SHOP",
+          image: "🏪",
+          prompt: "In SHOP, how many sounds does 'SH' represent?",
+          options: ["1 sound", "2 sounds", "3 sounds"],
+          correct: 0,
+          hint: "'sh' is a digraph = two letters, one sound!"
+        },
+        {
+          word: "CHIN",
+          image: "🗣️",
+          prompt: "Which shows the sounds in CHIN?",
+          options: ["/ch/ /i/ /n/", "/c/ /h/ /i/ /n/", "/ch/ /in/"],
+          correct: 0,
+          hint: "/ch/ - /i/ - /n/ makes 3 distinct sounds."
+        },
+        {
+          word: "THIN",
+          image: "📏",
+          prompt: "In THIN, what does 'TH' represent?",
+          options: ["Two separate sounds", "One sound", "Three sounds"],
+          correct: 1,
+          hint: "'th' is a single phoneme sound."
+        }
+      ]
+    },
+    {
+      id: 4,
+      name: "Suneo's Sound Train",
+      icon: "🚂",
+      pos: { x: 70, y: 58 },
+      color: "#F1C40F",
+      questions: [
+        {
+          word: "CHIN",
+          image: "🗣️",
+          prompt: "Which sound sequence matches CHIN?",
+          options: ["/ch/ /i/ /n/", "/c/ /h/ /i/ /n/", "/ch/ /n/"],
+          correct: 0,
+          hint: "3 carriages for 3 sounds: /ch/ /i/ /n/."
+        },
+        {
+          word: "CHAT",
+          image: "💬",
+          prompt: "How many sounds are in CHAT?",
+          options: ["2", "3", "4"],
+          correct: 1,
+          hint: "/ch/ /a/ /t/ = 3 sounds."
+        },
+        {
+          word: "FISH",
+          image: "🐟",
+          prompt: "What is the first sound in FISH?",
+          options: ["/f/", "/i/", "/sh/"],
+          correct: 0,
+          hint: "The starting sound of fish is /f/."
+        }
+      ]
+    },
+    {
+      id: 5,
+      name: "Gian's Robot Garden",
+      icon: "🤖",
+      pos: { x: 85, y: 25 },
+      color: "#E74C3C",
+      questions: [
+        {
+          word: "THIN",
+          image: "📏",
+          prompt: "Which shows the sounds in THIN?",
+          options: ["/th/ /i/ /n/", "/t/ /h/ /i/ /n/", "/th/ /n/"],
+          correct: 0,
+          hint: "/th/ /i/ /n/ = 3 sounds."
+        },
+        {
+          word: "SHOP",
+          image: "🏪",
+          prompt: "What is the first sound in SHOP?",
+          options: ["/s/", "/sh/", "/o/"],
+          correct: 1,
+          hint: "Shop starts with the /sh/ sound."
+        },
+        {
+          word: "SHIP",
+          image: "🚢",
+          prompt: "In SHIP, which two letters work together for ONE sound?",
+          options: ["SH", "HI", "IP"],
+          correct: 0,
+          hint: "S and H join together to make /sh/."
+        }
+      ]
+    },
+    {
+      id: 6,
+      name: "Rainbow Treasure Castle",
+      icon: "🏰",
+      pos: { x: 92, y: 12 },
+      color: "#3498DB",
+      questions: [
+        {
+          word: "CHAT",
+          image: "💬",
+          prompt: "Which shows the sounds in CHAT?",
+          options: ["/ch/ /a/ /t/", "/c/ /h/ /a/ /t/", "/ch/ /at/"],
+          correct: 0,
+          hint: "/ch/ - /a/ - /t/."
+        },
+        {
+          word: "THIN",
+          image: "📏",
+          prompt: "How many sounds are in THIN?",
+          options: ["2", "3", "4"],
+          correct: 1,
+          hint: "Count phonemes: /th/ /i/ /n/ = 3."
+        },
+        {
+          word: "FISH",
+          image: "🐟",
+          prompt: "Which shows the sounds in FISH?",
+          options: ["/f/ /i/ /sh/", "/f/ /i/ /s/ /h/", "/fi/ /sh/"],
+          correct: 0,
+          hint: "/f/ /i/ /sh/."
+        }
+      ]
+    }
+  ];
+
+  /* GAME STATE MANAGEMENT */
+  let gameState = {
+    unlockedLevel: 1,
+    currentLevelIdx: 0,
+    currentQuestionIdx: 0,
+    musicOn: true,
+    sfxOn: true
+  };
+
+  /* WEB AUDIO SYNTHESIZER */
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  function playSound(type) {
+    if (!gameState.sfxOn) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    if (type === 'click') {
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } else if (type === 'correct') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, now); // C5
+      osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+      osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } else if (type === 'wrong') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    }
+  }
+
+  /* BACKGROUND MUSIC LOOP */
+  let musicInterval = null;
+  function toggleMusic(enable) {
+    gameState.musicOn = enable;
+    const btn = document.getElementById('btn-music');
+    if (!enable) {
+      btn.classList.add('off');
+      clearInterval(musicInterval);
+      musicInterval = null;
+    } else {
+      btn.classList.remove('off');
+      if (!musicInterval) {
+        let noteIdx = 0;
+        const notes = [261.63, 329.63, 392.00, 523.25];
+        musicInterval = setInterval(() => {
+          if (!gameState.musicOn) return;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.value = notes[noteIdx % notes.length];
+          gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.4);
+          noteIdx++;
+        }, 500);
+      }
+    }
+  }
+
+  /* SPEECH SYNTHESIS NARRATION */
+  function speakText(text) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.8; // Slow, child-friendly pace
+      utterance.pitch = 1.1;
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  /* RENDER MAP NODES */
+  function renderMap() {
+    const container = document.getElementById('nodes-container');
+    container.innerHTML = '';
+
+    LEVELS.forEach((lvl, idx) => {
+      const node = document.createElement('div');
+      node.className = `map-node ${lvl.id < gameState.unlockedLevel ? 'completed' : lvl.id === gameState.unlockedLevel ? 'unlocked' : 'locked'}`;
+      node.style.left = `${lvl.pos.x}%`;
+      node.style.top = `${lvl.pos.y}%`;
+
+      node.innerHTML = `
+        <div class="node-num">${lvl.id < gameState.unlockedLevel ? '✓' : lvl.id}</div>
+        <div class="node-title">${lvl.icon} ${lvl.name}</div>
+      `;
+
+      node.addEventListener('click', () => {
+        if (lvl.id <= gameState.unlockedLevel) {
+          playSound('click');
+          startLevel(idx);
+        } else {
+          playSound('wrong');
+          speakText("This stage is locked! Complete earlier levels first.");
+        }
+      });
+
+      container.appendChild(node);
+    });
+
+    // Update Player Token position
+    const currentPos = LEVELS[gameState.unlockedLevel - 1].pos;
+    const token = document.getElementById('player-token');
+    token.style.left = `${currentPos.x}%`;
+    token.style.top = `${currentPos.y}%`;
+  }
+
+  /* GAMEPLAY FLOW LOGIC */
+  function startLevel(lvlIdx) {
+    gameState.currentLevelIdx = lvlIdx;
+    gameState.currentQuestionIdx = 0;
+    document.getElementById('game-view').classList.add('active');
+    loadQuestion();
+  }
+
+  function loadQuestion() {
+    const lvl = LEVELS[gameState.currentLevelIdx];
+    const q = lvl.questions[gameState.currentQuestionIdx];
+
+    document.getElementById('level-title').innerText = `${lvl.name.toUpperCase()} (${gameState.currentQuestionIdx + 1}/3)`;
+    document.getElementById('question-progress').style.width = `${((gameState.currentQuestionIdx) / 3) * 100}%`;
+    
+    document.getElementById('stage-visual').innerText = q.image;
+    document.getElementById('word-target').innerText = q.word;
+    document.getElementById('question-prompt').innerText = q.prompt;
+    document.getElementById('dialogue-text').innerText = `Listen carefully! Word: ${q.word}`;
+
+    const grid = document.getElementById('options-grid');
+    grid.innerHTML = '';
+
+    q.options.forEach((opt, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.innerText = opt;
+      btn.addEventListener('click', () => handleAnswer(idx, btn));
+      grid.appendChild(btn);
+    });
+
+    speakText(`${q.word}. ${q.prompt}`);
+  }
+
+  function handleAnswer(selectedIdx, btnElement) {
+    const q = LEVELS[gameState.currentLevelIdx].questions[gameState.currentQuestionIdx];
+
+    if (selectedIdx === q.correct) {
+      btnElement.classList.add('correct');
+      playSound('correct');
+      speakText("Amazing! That's correct!");
+
+      setTimeout(() => {
+        gameState.currentQuestionIdx++;
+        if (gameState.currentQuestionIdx >= 3) {
+          completeLevel();
+        } else {
+          loadQuestion();
+        }
+      }, 1200);
+    } else {
+      btnElement.classList.add('wrong');
+      playSound('wrong');
+      speakText("Good try! Let's listen again.");
+      document.getElementById('dialogue-text').innerText = q.hint;
+    }
+  }
+
+  function completeLevel() {
+    if (gameState.currentLevelIdx + 1 === gameState.unlockedLevel && gameState.unlockedLevel < 6) {
+      gameState.unlockedLevel++;
+    }
+
+    renderMap();
+
+    if (gameState.currentLevelIdx === 5) {
+      // Victory Screen
+      showModal("🏰 VICTORY HERO!", "Congratulations! You completed all 6 Phonics missions and reached the Rainbow Treasure Castle!", () => {
+        document.getElementById('game-view').classList.remove('active');
+      });
+    } else {
+      showModal("🌟 LEVEL COMPLETED!", "Great job! You unlocked the next adventure on your map!", () => {
+        document.getElementById('game-view').classList.remove('active');
+      });
+    }
+  }
+
+  function showModal(title, body, onClose) {
+    const overlay = document.getElementById('modal-overlay');
+    document.getElementById('modal-title').innerText = title;
+    document.getElementById('modal-body').innerText = body;
+    
+    const btn = document.getElementById('modal-btn');
+    btn.onclick = () => {
+      overlay.classList.remove('active');
+      if (onClose) onClose();
+    };
+
+    overlay.classList.add('active');
+  }
+
+  /* EVENT LISTENERS */
+  document.getElementById('btn-start').addEventListener('click', () => {
+    playSound('click');
+    document.getElementById('start-screen').style.display = 'none';
+    toggleMusic(true);
+    renderMap();
+  });
+
+  document.getElementById('btn-back-map').addEventListener('click', () => {
+    playSound('click');
+    document.getElementById('game-view').classList.remove('active');
+  });
+
+  document.getElementById('btn-map-home').addEventListener('click', () => {
+    playSound('click');
+    document.getElementById('game-view').classList.remove('active');
+  });
+
+  document.getElementById('btn-music').addEventListener('click', () => {
+    toggleMusic(!gameState.musicOn);
+  });
+
+  document.getElementById('btn-sfx').addEventListener('click', () => {
+    gameState.sfxOn = !gameState.sfxOn;
+    document.getElementById('btn-sfx').classList.toggle('off', !gameState.sfxOn);
+  });
+
+  document.getElementById('btn-speech').addEventListener('click', () => {
+    const q = LEVELS[gameState.currentLevelIdx].questions[gameState.currentQuestionIdx];
+    speakText(`Ship has three sounds: /sh/ ... /i/ ... /p/. Word is: ${q.word}`);
+  });
+
+  document.getElementById('btn-hint').addEventListener('click', () => {
+    const q = LEVELS[gameState.currentLevelIdx].questions[gameState.currentQuestionIdx];
+    speakText(q.hint);
+    document.getElementById('dialogue-text').innerText = `💡 ${q.hint}`;
+  });
+
+  // Initialize view
+  renderMap();
+</script>
+</body>
+</html>
